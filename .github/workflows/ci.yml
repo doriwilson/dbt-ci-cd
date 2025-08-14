@@ -2,7 +2,9 @@ name: CI_action
 
 on:
   pull_request:
-    branches: [ main ]
+    types: [opened, synchronize, reopened]
+    branches:
+      - main   # or your target branch
 
 env:
   DBT_TARGET: pr
