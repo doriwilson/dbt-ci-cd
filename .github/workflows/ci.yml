@@ -4,10 +4,6 @@ on:
   pull_request:
     branches: [ main ]
 
-concurrency:
-  group: dbt-pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 env:
   DBT_TARGET: pr
   # Cache key we expect main to write to (see snippet below)

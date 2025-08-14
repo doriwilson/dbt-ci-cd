@@ -4,10 +4,6 @@ on:
   push:
     branches: [ main ]
 
-concurrency:
-  group: dbt-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   # Artifact name per branch for the state/manifest
   MANIFEST_ARTIFACT_NAME: dbt-manifest-${{ github.ref_name }}

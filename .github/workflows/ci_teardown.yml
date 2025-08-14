@@ -4,10 +4,6 @@ on:
   pull_request:
     types: [closed]
 
-concurrency:
-  group: dbt-pr-teardown-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   CI_TEARDOWN_job:
     runs-on: ubuntu-latest
