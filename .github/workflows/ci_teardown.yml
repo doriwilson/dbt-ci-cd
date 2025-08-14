@@ -23,8 +23,6 @@ jobs:
 
       # Prefix used in your PR schemas, e.g. pr_123__<sha>  → SCHEMA_PREFIX=pr
       SCHEMA_PREFIX: pr
-
-      DBT_PROFILES_DIR: ${{ github.workspace }}/profiles
       DBT_TARGET: pr
 
     steps:

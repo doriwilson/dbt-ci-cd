@@ -31,7 +31,6 @@ concurrency:
 ```yaml
 env:
   DBT_TARGET: pr
-  DBT_PROFILES_DIR: ${{ github.workspace }}/profiles
   PROD_MANIFEST_CACHE_KEY: dbt-manifest-main-v1
 ```
 - **Target Isolation:** Uses `pr` target to separate from production configurations

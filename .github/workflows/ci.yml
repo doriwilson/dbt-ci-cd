@@ -10,7 +10,6 @@ concurrency:
 
 env:
   DBT_TARGET: pr
-  DBT_PROFILES_DIR: ${{ github.workspace }}/profiles   # adjust if different
   # Cache key we expect main to write to (see snippet below)
   PROD_MANIFEST_CACHE_KEY: dbt-manifest-main-v1
 

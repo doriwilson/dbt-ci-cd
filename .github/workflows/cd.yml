@@ -27,9 +27,6 @@ jobs:
       SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
       SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
 
-      # If your profiles.yml is in the repo, point to it; otherwise remove this.
-      DBT_PROFILES_DIR: ${{ github.workspace }}/profiles
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
