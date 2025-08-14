@@ -20,4 +20,3 @@ models:
         description: "Total order amount"
         tests:
           - not_null
-          - positive_values

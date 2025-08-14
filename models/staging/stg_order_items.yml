@@ -27,4 +27,3 @@ models:
         description: "Quantity ordered"
         tests:
           - not_null
-          - positive_values

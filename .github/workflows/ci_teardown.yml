@@ -34,8 +34,9 @@ jobs:
         # Ensure dbt-requirements.txt includes dbt-snowflake==1.8.*
         run: pip install -r dbt-requirements.txt
 
-      - name: Capture PR number
-        run: echo "PR_NUM=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+      - name: Capture SCHEMA_ID number
+        id: schema_id
+        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__${{ github.sha }}" >> $GITHUB_ENV
 
       - name: dbt deps
         run: dbt deps --target $DBT_TARGET
@@ -44,6 +45,4 @@ jobs:
         run: >
           dbt run-operation drop_pr_schemas
           --target $DBT_TARGET
-          --args '{"database": "'"$SNOWFLAKE_DATABASE"'",
-                  "schema_prefix": "'"$SCHEMA_PREFIX"'",
-                  "pr_number": "'"$PR_NUM"'"}'
+          --vars "schema_id: $SCHEMA_ID"
