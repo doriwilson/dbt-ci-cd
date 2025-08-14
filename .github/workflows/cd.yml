@@ -2,67 +2,83 @@ name: CD_action
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+
+concurrency:
+  group: dbt-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Artifact name per branch for the state/manifest
+  MANIFEST_ARTIFACT_NAME: dbt-manifest-${{ github.ref_name }}
+  DBT_TARGET: prod
 
 jobs:
   CD_job:
     runs-on: ubuntu-latest
 
+    # ❄️ Snowflake credentials – add these as GitHub Secrets
     env:
-      GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
-      GCLOUD_STORAGE_PATH_MANIFEST: ${{ secrets.GCLOUD_STORAGE_PATH_MANIFEST }}
-      DBT_ENV_SECRET_TYPE: ${{ secrets.DBT_ENV_SECRET_TYPE }} 
-      DBT_ENV_SECRET_PROJECT_ID: ${{ secrets.DBT_ENV_SECRET_PROJECT_ID }}
-      DBT_ENV_SECRET_PRIVATE_KEY_ID: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY_ID }} 
-      DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}  
-      DBT_ENV_SECRET_CLIENT_EMAIL: ${{ secrets.DBT_ENV_SECRET_CLIENT_EMAIL }}
-      DBT_ENV_SECRET_CLIENT_ID: ${{ secrets.DBT_ENV_SECRET_CLIENT_ID }} 
-      DBT_ENV_SECRET_AUTH_URI: ${{ secrets.DBT_ENV_SECRET_AUTH_URI }}
-      DBT_ENV_SECRET_TOKEN_URI: ${{ secrets.DBT_ENV_SECRET_TOKEN_URI }}
-      DBT_ENV_SECRET_AUTH_PROVIDER_X509_CERT_URL: ${{ secrets.DBT_ENV_SECRET_AUTH_PROVIDER_X509_CERT_URL }} 
-      DBT_ENV_SECRET_CLIENT_X509_CERT_URL: ${{ secrets.DBT_ENV_SECRET_CLIENT_X509_CERT_URL }} 
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}          # e.g. abc-xy123
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}        # or use key-pair (see notes below)
+      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+
+      # If your profiles.yml is in the repo, point to it; otherwise remove this.
+      DBT_PROFILES_DIR: ${{ github.workspace }}/profiles
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.12'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: Install dependencies
-      run: pip install -r dbt-requirements.txt
+      - name: Install dependencies (dbt-snowflake)
+        # Ensure your dbt-requirements.txt includes: dbt-snowflake==1.8.*
+        run: pip install -r dbt-requirements.txt
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v0.4.3
-      with:
-        credentials_json: ${{ secrets.GCLOUD_SERVICE_KEY }}
+      # ---- State handling (manifest.json) via artifacts ----
+      - name: Download previous manifest (if any)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ env.MANIFEST_ARTIFACT_NAME }}
+          path: ./state
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        project_id: ${{ secrets.DBT_ENV_SECRET_PROJECT_ID }}
+      - name: Use state manifest if present
+        run: |
+          if [ -f "./state/manifest.json" ]; then
+            cp ./state/manifest.json ./manifest.json
+            echo "Found previous manifest.json; using state:modified+"
+          else
+            echo "No previous manifest.json found; running full build"
+          fi
 
-    - name: Copy manifest.json from Google Cloud Storage
-      run: |
-        gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./ || echo "Manifest not found"
+      # ---- dbt steps ----
+      - name: dbt debug
+        run: dbt debug --target $DBT_TARGET
 
-    - name: Run dbt debug
-      run: dbt debug --target prod
+      - name: dbt deps
+        run: dbt deps --target $DBT_TARGET
 
-    - name: Run dbt deps
-      run: dbt deps --target prod
+      - name: dbt build (stateful when possible)
+        run: |
+          if [ -f "./manifest.json" ]; then
+            dbt build -s 'state:modified+' --state ./ --target $DBT_TARGET
+          else
+            dbt build --target $DBT_TARGET
+          fi
 
-    - name: Run dbt build
-      run: |
-        if [ -f "./manifest.json" ]; then
-          dbt build -s 'state:modified+' --state ./ --target prod
-        else
-          dbt build --target prod
-        fi
-
-    - name: Copy new manifest.json to Google Cloud Storage
-      run: |
-        gsutil cp ./target/manifest.json gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/
+      - name: Upload new manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MANIFEST_ARTIFACT_NAME }}
+          path: ./target/manifest.json
+          if-no-files-found: error
+          retention-days: 90

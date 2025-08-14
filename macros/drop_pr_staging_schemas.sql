@@ -1,29 +1,31 @@
-{%- macro drop_pr_staging_schemas(project_id, PR_number) %}
+{%- macro drop_pr_schemas(database, schema_prefix, pr_number) -%}
 
-    {% set pr_cleanup_query %}
-        with pr_staging_schemas as (
-            select schema_name
-            from {{ project_id }}.region-us.INFORMATION_SCHEMA.SCHEMATA
-            where
-            schema_name like 'pr_'||{{ PR_number }}||'__%'
-        )
+  {# List schemas in the given DATABASE that follow your PR pattern #}
+  {% set list_sql %}
+    select schema_name
+    from {{ database }}.information_schema.schemata
+    where schema_name ilike '{{ schema_prefix }}_%{{ pr_number }}__%'
+  {% endset %}
 
-        select 
-            'drop schema if exists '||schema_name||' cascade;' as drop_command 
-        from pr_staging_schemas
-    {% endset %}
+  {% do log(list_sql, info=true) %}
 
-{% do log(pr_cleanup_query, info=TRUE) %}
+  {% if execute %}
+    {% set res = run_query(list_sql) %}
+    {% set schemas = res.columns[0].values() if res else [] %}
+  {% else %}
+    {% set schemas = [] %}
+  {% endif %}
 
-{% set drop_commands = run_query(pr_cleanup_query).columns[0].values() %}
-
-{% if drop_commands %}
-  {% for drop_command in drop_commands %}
-    {% do log(drop_command, True) %}
-      {% do run_query(drop_command) %}
-  {% endfor %}
-{% else %}
-  {% do log('No schemas to drop.', True) %}
-{% endif %}
+  {% if schemas and schemas | length > 0 %}
+    {% for s in schemas %}
+      {# Build a fully-qualified, quoted identifier: DATABASE."SCHEMA" #}
+      {% set fq_schema = adapter.quote(database) ~ '.' ~ adapter.quote(s) %}
+      {% set drop_sql = 'drop schema if exists ' ~ fq_schema ~ ' cascade' %}
+      {% do log(drop_sql, info=true) %}
+      {% do run_query(drop_sql) %}
+    {% endfor %}
+  {% else %}
+    {% do log('No schemas to drop.', info=true) %}
+  {% endif %}
 
 {%- endmacro -%}

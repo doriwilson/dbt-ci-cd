@@ -1,62 +1,39 @@
-bigquery_sandbox:
+snowflake:
   target: dev
   outputs:
     dev:
-      type: bigquery
-      method: service-account-json
-      project: "{{ env_var('DBT_ENV_SECRET_PROJECT_ID') }}"
-      dataset: "dev"
-      threads: 4 # Must be a value of 1 or greater
-
-      # These fields come from the service account json keyfile
-      keyfile_json:
-        type: "{{ env_var('DBT_ENV_SECRET_TYPE') }}"
-        project_id: "{{ env_var('DBT_ENV_SECRET_PROJECT_ID') }}"
-        private_key_id: "{{ env_var('DBT_ENV_SECRET_PRIVATE_KEY_ID') }}"
-        private_key: "{{ env_var('DBT_ENV_SECRET_PRIVATE_KEY') }}"
-        client_email: "{{ env_var('DBT_ENV_SECRET_CLIENT_EMAIL') }}"
-        client_id: "{{ env_var('DBT_ENV_SECRET_CLIENT_ID') }}"
-        auth_uri: "{{ env_var('DBT_ENV_SECRET_AUTH_URI') }}"
-        token_uri: "{{ env_var('DBT_ENV_SECRET_TOKEN_URI') }}"
-        auth_provider_x509_cert_url: "{{ env_var('DBT_ENV_SECRET_AUTH_PROVIDER_X509_CERT_URL') }}"
-        client_x509_cert_url: "{{ env_var('DBT_ENV_SECRET_CLIENT_X509_CERT_URL') }}"
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"   # or key-pair; see notes
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA_DEV', 'DEV_SCHEMA') }}"
+      threads: 4
+      client_session_keep_alive: false
 
     prod:
-      type: bigquery
-      method: service-account-json
-      project: "{{ env_var('DBT_ENV_SECRET_PROJECT_ID') }}"
-      dataset: "prod"
-      threads: 4 # Must be a value of 1 or greater
-
-      # These fields come from the service account json keyfile
-      keyfile_json:
-        type: "{{ env_var('DBT_ENV_SECRET_TYPE') }}"
-        project_id: "{{ env_var('DBT_ENV_SECRET_PROJECT_ID') }}"
-        private_key_id: "{{ env_var('DBT_ENV_SECRET_PRIVATE_KEY_ID') }}"
-        private_key: "{{ env_var('DBT_ENV_SECRET_PRIVATE_KEY') }}"
-        client_email: "{{ env_var('DBT_ENV_SECRET_CLIENT_EMAIL') }}"
-        client_id: "{{ env_var('DBT_ENV_SECRET_CLIENT_ID') }}"
-        auth_uri: "{{ env_var('DBT_ENV_SECRET_AUTH_URI') }}"
-        token_uri: "{{ env_var('DBT_ENV_SECRET_TOKEN_URI') }}"
-        auth_provider_x509_cert_url: "{{ env_var('DBT_ENV_SECRET_AUTH_PROVIDER_X509_CERT_URL') }}"
-        client_x509_cert_url: "{{ env_var('DBT_ENV_SECRET_CLIENT_X509_CERT_URL') }}"
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA_PROD', 'PROD_SCHEMA') }}"
+      threads: 4
+      client_session_keep_alive: false
 
     pr:
-      type: bigquery
-      method: service-account-json
-      project: "{{ env_var('DBT_ENV_SECRET_PROJECT_ID') }}"
-      dataset: "pr_{{ var('schema_id') }}"
-      threads: 4 # Must be a value of 1 or greater
-
-      # These fields come from the service account json keyfile
-      keyfile_json:
-        type: "{{ env_var('DBT_ENV_SECRET_TYPE') }}"
-        project_id: "{{ env_var('DBT_ENV_SECRET_PROJECT_ID') }}"
-        private_key_id: "{{ env_var('DBT_ENV_SECRET_PRIVATE_KEY_ID') }}"
-        private_key: "{{ env_var('DBT_ENV_SECRET_PRIVATE_KEY') }}"
-        client_email: "{{ env_var('DBT_ENV_SECRET_CLIENT_EMAIL') }}"
-        client_id: "{{ env_var('DBT_ENV_SECRET_CLIENT_ID') }}"
-        auth_uri: "{{ env_var('DBT_ENV_SECRET_AUTH_URI') }}"
-        token_uri: "{{ env_var('DBT_ENV_SECRET_TOKEN_URI') }}"
-        auth_provider_x509_cert_url: "{{ env_var('DBT_ENV_SECRET_AUTH_PROVIDER_X509_CERT_URL') }}"
-        client_x509_cert_url: "{{ env_var('DBT_ENV_SECRET_CLIENT_X509_CERT_URL') }}"
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      # e.g., pr_123__abcdef; must match your build & teardown conventions
+      schema: "{{ env_var('SCHEMA_PREFIX', 'pr') }}_{{ var('schema_id') }}"
+      threads: 4
+      client_session_keep_alive: false
