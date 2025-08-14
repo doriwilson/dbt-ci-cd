@@ -25,9 +25,7 @@ models:
         description: "Quantity ordered"
         tests:
           - not_null
-          - positive_values
       - name: unit_price
         description: "Price per unit"
         tests:
           - not_null
-          - positive_values

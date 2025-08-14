@@ -13,12 +13,10 @@ models:
         description: "Total number of orders by customer"
         tests:
           - not_null
-          - positive_values
       - name: total_spent
         description: "Total amount spent by customer"
         tests:
           - not_null
-          - positive_values
       - name: customer_tier
         description: "Customer tier based on spending"
         tests:

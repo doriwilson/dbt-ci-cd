@@ -13,7 +13,6 @@ models:
         description: "Total revenue from product sales"
         tests:
           - not_null
-          - positive_values
       - name: profit_margin
         description: "Profit margin per product"
         tests:

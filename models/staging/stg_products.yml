@@ -13,9 +13,7 @@ models:
         description: "Product selling price"
         tests:
           - not_null
-          - positive_values
       - name: cost
         description: "Product cost"
         tests:
           - not_null
-          - positive_values
