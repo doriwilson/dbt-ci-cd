@@ -4,11 +4,6 @@ on:
   push:
     branches: [ main ]
 
-env:
-  # Artifact name per branch for the state/manifest
-  MANIFEST_ARTIFACT_NAME: dbt-manifest-${{ github.ref_name }}
-  DBT_TARGET: prod
-
 jobs:
   CD_job:
     runs-on: ubuntu-latest
@@ -22,6 +17,9 @@ jobs:
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
       SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
       SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+
+      MANIFEST_ARTIFACT_NAME: dbt-manifest-${{ github.ref_name }}
+      DBT_TARGET: prod
 
     steps:
       - name: Checkout repository

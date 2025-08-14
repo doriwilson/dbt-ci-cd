@@ -2,13 +2,8 @@ name: CI_action
 
 on:
   pull_request:
-    branches:
-      - main
-
-env:
-  DBT_TARGET: pr
-  # Cache key we expect main to write to (see snippet below)
-  PROD_MANIFEST_CACHE_KEY: dbt-manifest-main-v1
+    types: [opened, synchronize, reopened]
+    branches: [main]
 
 jobs:
   CI_job:
@@ -23,6 +18,10 @@ jobs:
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
       SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
       SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+
+      DBT_TARGET: pr
+      # Cache key we expect main to write to (see snippet below)
+      PROD_MANIFEST_CACHE_KEY: dbt-manifest-main-v1
 
     steps:
       - name: Checkout repository
