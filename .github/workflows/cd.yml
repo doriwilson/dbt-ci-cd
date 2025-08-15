@@ -44,10 +44,11 @@ jobs:
               "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
               -o artifacts.json
 
-          artifact_id=$(grep -A20 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
-            | grep '"id":' \
+          # Extract correct artifact ID by getting download URL
+          artifact_id=$(grep -A10 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
+            | grep '"archive_download_url":' \
             | head -n1 \
-            | sed 's/[^0-9]*\([0-9]\+\).*/\1/')
+            | sed 's/.*artifacts\/\([0-9]*\)\/zip.*/\1/')
 
           if [ -z "$artifact_id" ]; then
             echo "❌ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
