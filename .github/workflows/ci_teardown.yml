@@ -36,7 +36,7 @@ jobs:
 
       - name: Capture SCHEMA_ID number
         id: schema_id
-        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__${{ substr(github.sha, 0, 7) }}" >> $GITHUB_ENV
+        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__${{ github.sha::7 }}" >> $GITHUB_ENV
 
       - name: dbt deps
         run: dbt deps --target $DBT_TARGET
