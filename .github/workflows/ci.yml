@@ -39,7 +39,7 @@ jobs:
       # ---- Get PR-scoped schema suffix ----
       - name: Get Schema ID
         id: schema_id
-        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__${{ github.event.pull_request.head.sha::7 }}" >> $GITHUB_ENV
+        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
 
       # ---- Download manifest from MAIN for slim CI ----
       - name: Download latest manifest artifact
