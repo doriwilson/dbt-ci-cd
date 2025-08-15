@@ -52,3 +52,4 @@ order_details as (
 )
 
 select * from order_details
+where true
