@@ -35,12 +35,38 @@ jobs:
         run: pip install -r dbt-requirements.txt
 
       # ---- State handling (manifest.json) via artifacts ----
-      - name: Download previous manifest (if any)
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: ${{ env.MANIFEST_ARTIFACT_NAME }}
-          path: ./state
+      - name: Download latest dbt-manifest artifact
+        shell: bash
+        run: |
+          echo "Fetching artifact list..."
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github+json" \
+               https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+               -o artifacts.json
+
+          # Extract the latest artifact ID with name "dbt-manifest" using grep and sed
+          artifact_id=$(cat artifacts.json \
+            | awk '/"name": "dbt-manifest"/{getline; getline; print}' \
+            | grep '"id":' \
+            | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
+            | head -n1)
+
+          if [ -z "$artifact_id" ]; then
+            echo "❌ No artifact named 'dbt-manifest' found."
+            exit 1
+          fi
+
+          echo "✅ Found artifact ID: $artifact_id"
+          echo "Downloading artifact zip..."
+
+          curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github+json" \
+               https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
+               -o artifact.zip
+
+          unzip artifact.zip -d state
+          echo "✅ Artifact extracted to ./state/"
+          ls -lh state
 
       - name: Use state manifest if present
         run: |

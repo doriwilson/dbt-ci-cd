@@ -31,7 +31,7 @@ concurrency:
 ```yaml
 env:
   DBT_TARGET: pr
-  PROD_MANIFEST_CACHE_KEY: dbt-manifest
+  MANIFEST_ARTIFACT_NAME: dbt-manifest
 ```
 - **Target Isolation:** Uses `pr` target to separate from production configurations
 - **Profile Management:** Points to workspace-specific profiles directory
@@ -69,9 +69,45 @@ fi
 
 **Artifact Download Strategy:**
 - **Cross-Workflow Access:** Downloads manifest artifacts from CD workflow runs on main branch
-- **Token Authentication:** Requires `DOWNLOAD_ARTIFACT_TOKEN` secret with elevated permissions
+- **Direct API Access:** Uses GitHub REST API with default GITHUB_TOKEN for artifact retrieval
 - **State Persistence:** Maintains manifest history for incremental builds across PRs
 - **Error Tolerance:** Continues execution even if artifact download fails
+
+#### **Manifest Download Implementation**
+```bash
+- name: Download latest manifest artifact
+  shell: bash
+  run: |
+    echo "Fetching artifact list..."
+    curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+         -H "Accept: application/vnd.github+json" \
+         https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+         -o artifacts.json
+
+    # Extract the latest artifact ID with name "${{ env.MANIFEST_ARTIFACT_NAME }}" using grep and sed
+    artifact_id=$(cat artifacts.json \
+      | awk '/"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"/{getline; getline; print}' \
+      | grep '"id":' \
+      | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
+      | head -n1)
+
+    if [ -z "$artifact_id" ]; then
+      echo "❌ No artifact named '${{ env.MANIFEST_ARTIFACT_NAME }}' found."
+      exit 1
+    fi
+
+    echo "✅ Found artifact ID: $artifact_id"
+    echo "Downloading artifact zip..."
+
+    curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+         -H "Accept: application/vnd.github+json" \
+         https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
+         -o artifact.zip
+
+    unzip artifact.zip -d state
+    echo "✅ Artifact extracted to ./state/"
+    ls -lh state
+```
 
 #### **Conditional Build Execution**
 ```bash
@@ -115,12 +151,38 @@ concurrency:
 
 #### **State Management & Incremental Deployment**
 ```bash
-- name: Download previous manifest (if any)
-  uses: actions/download-artifact@v4
-  continue-on-error: true
-  with:
-    name: ${{ env.MANIFEST_ARTIFACT_NAME }}
-    path: ./state
+- name: Download latest manifest artifact
+  shell: bash
+  run: |
+    echo "Fetching artifact list..."
+    curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+         -H "Accept: application/vnd.github+json" \
+         https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+         -o artifacts.json
+
+    # Extract the latest artifact ID with name "${{ env.MANIFEST_ARTIFACT_NAME }}" using grep and sed
+    artifact_id=$(cat artifacts.json \
+      | awk '/"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"/{getline; getline; print}' \
+      | grep '"id":' \
+      | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
+      | head -n1)
+
+    if [ -z "$artifact_id" ]; then
+      echo "❌ No artifact named '${{ env.MANIFEST_ARTIFACT_NAME }}' found."
+      exit 1
+    fi
+
+    echo "✅ Found artifact ID: $artifact_id"
+    echo "Downloading artifact zip..."
+
+    curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+         -H "Accept: application/vnd.github+json" \
+         https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
+         -o artifact.zip
+
+    unzip artifact.zip -d state
+    echo "✅ Artifact extracted to ./state/"
+    ls -lh state
 ```
 
 **Artifact Strategy:**
@@ -380,7 +442,7 @@ SNOWFLAKE_DATABASE: "your-database"              # e.g., ANALYTICS
 SNOWFLAKE_SCHEMA: "your-default-schema"          # e.g., PUBLIC
 
 # GitHub Actions Artifact Access
-DOWNLOAD_ARTIFACT_TOKEN: "your-personal-access-token"  # Requires actions:read permissions
+# Note: Uses default GITHUB_TOKEN for artifact downloads via GitHub API
 ```
 
 #### **Alternative Authentication Methods:**
@@ -396,13 +458,12 @@ SNOWFLAKE_CLIENT_SECRET: "your-oauth-client-secret"
 
 #### **Token Permission Requirements:**
 ```yaml
-# DOWNLOAD_ARTIFACT_TOKEN must have the following permissions:
+# The default GITHUB_TOKEN provides sufficient permissions for:
 # - actions:read (to download artifacts from workflows)
 # - contents:read (to access repository content)
 # - workflows:read (to access workflow run information)
 #
-# Create this token in GitHub Settings > Developer settings > Personal access tokens
-# Or use a GitHub App with appropriate permissions for enterprise deployments
+# No additional token setup required - uses built-in GitHub Actions permissions
 ```
 
 ### **dbt Configuration Requirements**
@@ -744,13 +805,38 @@ models:
 #### **3. Artifact Download Optimization:**
 ```yaml
 # Optimize manifest artifact download
-- name: Download production manifest artifact
-  uses: actions/download-artifact@v5
-  with:
-    name: ${{ env.PROD_MANIFEST_CACHE_KEY }}
-    path: ./state
-    github-token: ${{ secrets.DOWNLOAD_ARTIFACT_TOKEN }}
-    repository: ${{ github.repository }}
+- name: Download latest manifest artifact
+  shell: bash
+  run: |
+    echo "Fetching artifact list..."
+    curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+         -H "Accept: application/vnd.github+json" \
+         https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+         -o artifacts.json
+
+    # Extract the latest artifact ID with name "${{ env.MANIFEST_ARTIFACT_NAME }}" using grep and sed
+    artifact_id=$(cat artifacts.json \
+      | awk '/"name": "${{ env.MANIFEST_ARTIFEST_NAME }}"/{getline; getline; print}' \
+      | grep '"id":' \
+      | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
+      | head -n1)
+
+    if [ -z "$artifact_id" ]; then
+      echo "❌ No artifact named '${{ env.MANIFEST_ARTIFACT_NAME }}' found."
+      exit 1
+    fi
+
+    echo "✅ Found artifact ID: $artifact_id"
+    echo "Downloading artifact zip..."
+
+    curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+         -H "Accept: application/vnd.github+json" \
+         https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
+         -o artifact.zip
+
+    unzip artifact.zip -d state
+    echo "✅ Artifact extracted to ./state/"
+    ls -lh state
 ```
 
 ## Conclusion
