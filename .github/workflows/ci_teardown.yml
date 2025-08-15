@@ -17,9 +17,8 @@ jobs:
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
       SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
 
-      # Prefix used in your PR schemas, e.g. pr_123__<sha>  → SCHEMA_PREFIX=pr
-      SCHEMA_PREFIX: pr
       DBT_TARGET: pr
+      SCHEMA_PREFIX: PR
 
     steps:
       - name: Checkout
@@ -36,7 +35,7 @@ jobs:
 
       - name: Capture SCHEMA_ID number
         id: schema_id
-        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
+        run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7 | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
       - name: dbt deps
         run: dbt deps --target $DBT_TARGET

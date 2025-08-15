@@ -34,6 +34,6 @@ snowflake:
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
       database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
       # e.g., pr_123__abcdef; must match your build & teardown conventions
-      schema: "{{ env_var('SCHEMA_PREFIX', 'pr') }}_{{ var('schema_id') }}"
+      schema: "{{ env_var('SCHEMA_PREFIX', 'PR') }}_{{ var('schema_id') }}"
       threads: 4
       client_session_keep_alive: false
