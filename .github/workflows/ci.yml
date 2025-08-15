@@ -21,7 +21,7 @@ jobs:
 
       DBT_TARGET: pr
       # Cache key we expect main to write to (see snippet below)
-      PROD_MANIFEST_CACHE_KEY: dbt-manifest-main-v1
+      PROD_MANIFEST_CACHE_KEY: dbt-manifest
 
     steps:
       - name: Checkout repository
@@ -46,10 +46,8 @@ jobs:
         id: restore-manifest
         uses: actions/cache/restore@v4
         with:
-          path: state
+          path: ./state
           key: ${{ env.PROD_MANIFEST_CACHE_KEY }}
-          restore-keys: |
-            dbt-manifest-main-
 
       - name: Use state manifest if present
         run: |
@@ -72,7 +70,7 @@ jobs:
       - name: dbt build (slim CI when state is available)
         run: |
           if [ -f "./manifest.json" ]; then
-            dbt build -s 'state:modified+' --defer --state ./ --target $DBT_TARGET --vars "schema_id: $SCHEMA_ID"
+            dbt build -s 'state:modified+' --defer --state ./state --target $DBT_TARGET --vars "schema_id: $SCHEMA_ID"
           else
             dbt build --target $DBT_TARGET --vars "schema_id: $SCHEMA_ID"
           fi

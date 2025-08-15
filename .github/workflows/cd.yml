@@ -18,7 +18,7 @@ jobs:
       SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
       SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
 
-      MANIFEST_ARTIFACT_NAME: dbt-manifest-${{ github.ref_name }}
+      MANIFEST_ARTIFACT_NAME: dbt-manifest
       DBT_TARGET: prod
 
     steps:
@@ -61,7 +61,7 @@ jobs:
       - name: dbt build (stateful when possible)
         run: |
           if [ -f "./manifest.json" ]; then
-            dbt build -s 'state:modified+' --state ./ --target $DBT_TARGET
+            dbt build -s 'state:modified+' --state ./state --target $DBT_TARGET
           else
             dbt build --target $DBT_TARGET
           fi
