@@ -22,4 +22,3 @@ staged as (
 )
 
 select * from staged
-where true
