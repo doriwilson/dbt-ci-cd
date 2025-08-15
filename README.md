@@ -31,11 +31,11 @@ concurrency:
 ```yaml
 env:
   DBT_TARGET: pr
-  PROD_MANIFEST_CACHE_KEY: dbt-manifest-main-v1
+  PROD_MANIFEST_CACHE_KEY: dbt-manifest
 ```
 - **Target Isolation:** Uses `pr` target to separate from production configurations
 - **Profile Management:** Points to workspace-specific profiles directory
-- **Cache Strategy:** Defines cache key for retrieving production manifest
+- **Artifact Strategy:** Defines artifact name for downloading production manifest
 
 #### **Schema Generation Strategy**
 ```bash
@@ -66,6 +66,12 @@ fi
 - **Full Build:** When no manifest exists, runs complete dbt build
 - **First-Time Setup:** Handles scenarios where project is being initialized
 - **Error Recovery:** Provides robust fallback for edge cases
+
+**Artifact Download Strategy:**
+- **Cross-Workflow Access:** Downloads manifest artifacts from CD workflow runs on main branch
+- **Token Authentication:** Requires `DOWNLOAD_ARTIFACT_TOKEN` secret with elevated permissions
+- **State Persistence:** Maintains manifest history for incremental builds across PRs
+- **Error Tolerance:** Continues execution even if artifact download fails
 
 #### **Conditional Build Execution**
 ```bash
@@ -372,6 +378,9 @@ SNOWFLAKE_ROLE: "your-dbt-role"                  # e.g., DBT_CI_ROLE
 SNOWFLAKE_WAREHOUSE: "your-warehouse"            # e.g., DBT_CI_WH
 SNOWFLAKE_DATABASE: "your-database"              # e.g., ANALYTICS
 SNOWFLAKE_SCHEMA: "your-default-schema"          # e.g., PUBLIC
+
+# GitHub Actions Artifact Access
+DOWNLOAD_ARTIFACT_TOKEN: "your-personal-access-token"  # Requires actions:read permissions
 ```
 
 #### **Alternative Authentication Methods:**
@@ -383,6 +392,17 @@ SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "optional-passphrase"
 # OAuth Authentication (Enterprise)
 SNOWFLAKE_CLIENT_ID: "your-oauth-client-id"
 SNOWFLAKE_CLIENT_SECRET: "your-oauth-client-secret"
+```
+
+#### **Token Permission Requirements:**
+```yaml
+# DOWNLOAD_ARTIFACT_TOKEN must have the following permissions:
+# - actions:read (to download artifacts from workflows)
+# - contents:read (to access repository content)
+# - workflows:read (to access workflow run information)
+#
+# Create this token in GitHub Settings > Developer settings > Personal access tokens
+# Or use a GitHub App with appropriate permissions for enterprise deployments
 ```
 
 ### **dbt Configuration Requirements**
@@ -721,17 +741,16 @@ models:
   +materialized: view  # Faster than table for testing
 ```
 
-#### **3. Cache Optimization:**
+#### **3. Artifact Download Optimization:**
 ```yaml
-# Optimize manifest caching
-- name: Cache manifest with TTL
-  uses: actions/cache@v4
+# Optimize manifest artifact download
+- name: Download production manifest artifact
+  uses: actions/download-artifact@v5
   with:
-    path: state
-    key: ${{ env.PROD_MANIFEST_CACHE_KEY }}
-    restore-keys: |
-      dbt-manifest-main-
-    ttl: 3600  # 1 hour cache TTL
+    name: ${{ env.PROD_MANIFEST_CACHE_KEY }}
+    path: ./state
+    github-token: ${{ secrets.DOWNLOAD_ARTIFACT_TOKEN }}
+    repository: ${{ github.repository }}
 ```
 
 ## Conclusion
