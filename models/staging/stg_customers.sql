@@ -13,7 +13,7 @@ staged as (
         customer_id,
         first_name,
         last_name,
-        email,
+        null as email,
         phone,
         address,
         city,
