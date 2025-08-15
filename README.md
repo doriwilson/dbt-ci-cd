@@ -73,38 +73,43 @@ fi
 - **State Persistence:** Maintains manifest history for incremental builds across PRs
 - **Error Tolerance:** Continues execution even if artifact download fails
 
+**Technical Improvements:**
+- **Enhanced Artifact Extraction:** Uses `grep -A20` for more reliable artifact ID parsing
+- **Improved Regex Pattern:** Better number extraction with `[0-9]\+` for artifact IDs
+- **Quiet Operations:** Silent unzip with `-q` flag for cleaner logs
+- **Better Logging:** Emoji-enhanced messages for improved readability and debugging
+- **Optimized Retention:** Reduced from 90 to 7 days for cost optimization
+
 #### **Manifest Download Implementation**
 ```bash
 - name: Download latest manifest artifact
   shell: bash
   run: |
-    echo "Fetching artifact list..."
+    echo "🔍 Fetching artifact list..."
     curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-         -H "Accept: application/vnd.github+json" \
-         https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
-         -o artifacts.json
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
+        -o artifacts.json
 
-    # Extract the latest artifact ID with name "${{ env.MANIFEST_ARTIFACT_NAME }}" using grep and sed
-    artifact_id=$(cat artifacts.json \
-      | awk '/"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"/{getline; getline; print}' \
+    artifact_id=$(grep -A20 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
       | grep '"id":' \
-      | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
-      | head -n1)
+      | head -n1 \
+      | sed 's/[^0-9]*\([0-9]\+\).*/\1/')
 
     if [ -z "$artifact_id" ]; then
-      echo "❌ No artifact named '${{ env.MANIFEST_ARTIFACT_NAME }}' found."
+      echo "❌ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
       exit 1
     fi
 
     echo "✅ Found artifact ID: $artifact_id"
-    echo "Downloading artifact zip..."
+    echo "⬇️ Downloading artifact..."
 
-    curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-         -H "Accept: application/vnd.github+json" \
-         https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
-         -o artifact.zip
+    curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" \
+        -o artifact.zip
 
-    unzip artifact.zip -d state
+    unzip -q artifact.zip -d state
     echo "✅ Artifact extracted to ./state/"
     ls -lh state
 ```
@@ -154,33 +159,31 @@ concurrency:
 - name: Download latest manifest artifact
   shell: bash
   run: |
-    echo "Fetching artifact list..."
+    echo "🔍 Fetching artifact list..."
     curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-         -H "Accept: application/vnd.github+json" \
-         https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
-         -o artifacts.json
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
+        -o artifacts.json
 
-    # Extract the latest artifact ID with name "${{ env.MANIFEST_ARTIFACT_NAME }}" using grep and sed
-    artifact_id=$(cat artifacts.json \
-      | awk '/"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"/{getline; getline; print}' \
+    artifact_id=$(grep -A20 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
       | grep '"id":' \
-      | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
-      | head -n1)
+      | head -n1 \
+      | sed 's/[^0-9]*\([0-9]\+\).*/\1/')
 
     if [ -z "$artifact_id" ]; then
-      echo "❌ No artifact named '${{ env.MANIFEST_ARTIFACT_NAME }}' found."
+      echo "❌ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
       exit 1
     fi
 
     echo "✅ Found artifact ID: $artifact_id"
-    echo "Downloading artifact zip..."
+    echo "⬇️ Downloading artifact..."
 
-    curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-         -H "Accept: application/vnd.github+json" \
-         https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
-         -o artifact.zip
+    curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" \
+        -o artifact.zip
 
-    unzip artifact.zip -d state
+    unzip -q artifact.zip -d state
     echo "✅ Artifact extracted to ./state/"
     ls -lh state
 ```
@@ -236,13 +239,13 @@ fi
     name: ${{ env.MANIFEST_ARTIFACT_NAME }}
     path: ./target/manifest.json
     if-no-files-found: error
-    retention-days: 90
+    retention-days: 7
 ```
 
 **Artifact Strategy Details:**
 - **Version Naming:** Uses branch-specific naming for manifest artifacts
 - **Error Handling:** Fails deployment if manifest generation fails
-- **Retention Policy:** Maintains 90-day history for rollback scenarios
+- **Retention Policy:** Maintains 7-day history for rollback scenarios (optimized for cost)
 - **State Continuity:** Enables future incremental deployments
 
 
@@ -808,33 +811,31 @@ models:
 - name: Download latest manifest artifact
   shell: bash
   run: |
-    echo "Fetching artifact list..."
+    echo "🔍 Fetching artifact list..."
     curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-         -H "Accept: application/vnd.github+json" \
-         https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
-         -o artifacts.json
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
+        -o artifacts.json
 
-    # Extract the latest artifact ID with name "${{ env.MANIFEST_ARTIFACT_NAME }}" using grep and sed
-    artifact_id=$(cat artifacts.json \
-      | awk '/"name": "${{ env.MANIFEST_ARTIFEST_NAME }}"/{getline; getline; print}' \
+    artifact_id=$(grep -A20 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
       | grep '"id":' \
-      | sed 's/[^0-9]*\([0-9]*\).*/\1/' \
-      | head -n1)
+      | head -n1 \
+      | sed 's/[^0-9]*\([0-9]\+\).*/\1/')
 
     if [ -z "$artifact_id" ]; then
-      echo "❌ No artifact named '${{ env.MANIFEST_ARTIFACT_NAME }}' found."
+      echo "❌ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
       exit 1
     fi
 
     echo "✅ Found artifact ID: $artifact_id"
-    echo "Downloading artifact zip..."
+    echo "⬇️ Downloading artifact..."
 
-    curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-         -H "Accept: application/vnd.github+json" \
-         https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
-         -o artifact.zip
+    curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" \
+        -o artifact.zip
 
-    unzip artifact.zip -d state
+    unzip -q artifact.zip -d state
     echo "✅ Artifact extracted to ./state/"
     ls -lh state
 ```
