@@ -1,1 +1,2 @@
-dbt-snowflake
+dbt-duckdb
+recce

@@ -1,39 +1,21 @@
-snowflake:
+jaffle_shop:
   target: dev
   outputs:
     dev:
-      type: snowflake
-      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
-      user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"   # or key-pair; see notes
-      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
-      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
-      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
-      schema: "{{ env_var('SNOWFLAKE_SCHEMA_DEV', 'DEV_SCHEMA') }}"
+      type: duckdb
+      path: 'jaffle_shop.duckdb'
+      schema: 'dev'
       threads: 4
-      client_session_keep_alive: false
 
     prod:
-      type: snowflake
-      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
-      user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
-      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
-      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
-      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
-      schema: "{{ env_var('SNOWFLAKE_SCHEMA_PROD', 'PROD_SCHEMA') }}"
+      type: duckdb
+      path: 'jaffle_shop.duckdb'
+      schema: 'prod'
       threads: 4
-      client_session_keep_alive: false
 
     pr:
-      type: snowflake
-      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
-      user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
-      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
-      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
-      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      type: duckdb
+      path: 'jaffle_shop.duckdb'
       # e.g., pr_123__abcdef; must match your build & teardown conventions
-      schema: "{{ env_var('SCHEMA_PREFIX', 'PR') }}_{{ var('schema_id') }}"
+      schema: "{{ env_var('SCHEMA_PREFIX', 'pr') }}_{{ var('schema_id') }}"
       threads: 4
-      client_session_keep_alive: false

@@ -8,16 +8,8 @@ jobs:
   CD_job:
     runs-on: ubuntu-latest
 
-    # ❄️ Snowflake credentials – add these as GitHub Secrets
+    # 🦆 DuckDB configuration (no external credentials needed)
     env:
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}          # e.g. abc-xy123
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}        # or use key-pair (see notes below)
-      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
-
       MANIFEST_ARTIFACT_NAME: dbt-manifest
       DBT_TARGET: prod
 
@@ -91,10 +83,35 @@ jobs:
             dbt build --target $DBT_TARGET
           fi
 
+      - name: Generate dbt docs for Recce compatibility
+        run: |
+          echo "📚 Generating dbt docs for future Recce comparisons..."
+          dbt docs generate --target $DBT_TARGET || {
+            echo "⚠️ dbt docs generation failed, but continuing deployment"
+          }
+
       - name: Upload new manifest artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.MANIFEST_ARTIFACT_NAME }}
           path: ./target/manifest.json
           if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload catalog artifact for Recce
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dbt-catalog
+          path: ./target/catalog.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload run results for Recce
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dbt-run-results
+          path: ./target/run_results.json
+          if-no-files-found: ignore
           retention-days: 7

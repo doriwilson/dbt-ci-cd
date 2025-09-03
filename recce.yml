@@ -1,0 +1,164 @@
+# Recce Configuration for dbt CI/CD with Jaffle Shop Validation
+# This file defines preset checks that run automatically during CI/CD
+
+checks:
+  # Row count validation for key models
+  - name: Row count validation - dim_customers
+    description: |
+      Validates that the customer dimension table has reasonable row counts.
+      This check helps catch issues with customer data processing.
+    type: row_count_diff
+    params:
+      model: "{{ ref('dim_customers') }}"
+    view_options:
+      primary_keys:
+        - customer_id
+
+  - name: Row count validation - fct_orders
+    description: |
+      Validates that the orders fact table has reasonable row counts.
+      This check helps catch issues with order data processing.
+    type: row_count_diff
+    params:
+      model: "{{ ref('fct_orders') }}"
+    view_options:
+      primary_keys:
+        - order_item_id
+
+  # Revenue and business logic validation
+  - name: Customer Lifetime Value validation
+    description: |
+      Validates customer lifetime value calculations by checking total spent amounts.
+      This helps ensure business logic changes don't break revenue calculations.
+    type: query_diff
+    params:
+      sql_template: |
+        select 
+          customer_tier,
+          count(*) as customer_count,
+          sum(total_spent) as total_revenue,
+          avg(total_spent) as avg_spent_per_customer
+        from {{ ref('dim_customers') }}
+        group by customer_tier
+        order by customer_tier
+    view_options:
+      primary_keys:
+        - customer_tier
+
+  - name: Order status distribution validation
+    description: |
+      Validates that order status distributions remain consistent.
+      This helps catch issues with order processing logic.
+    type: query_diff
+    params:
+      sql_template: |
+        select 
+          status,
+          count(*) as order_count,
+          sum(total_amount) as total_revenue
+        from {{ ref('stg_orders') }}
+        group by status
+        order by status
+    view_options:
+      primary_keys:
+        - status
+
+  - name: Payment method revenue impact
+    description: |
+      Validates revenue distribution by payment method.
+      This helps ensure payment processing changes don't affect revenue calculations.
+    type: query_diff
+    params:
+      sql_template: |
+        select 
+          payment_method,
+          count(*) as order_count,
+          sum(total_amount) as total_revenue,
+          avg(total_amount) as avg_order_value
+        from {{ ref('stg_orders') }}
+        group by payment_method
+        order by total_revenue desc
+    view_options:
+      primary_keys:
+        - payment_method
+
+  # Data quality checks
+  - name: Customer segmentation consistency
+    description: |
+      Validates that customer segmentation logic produces consistent results.
+      This helps catch issues with customer tier calculations.
+    type: query_diff
+    params:
+      sql_template: |
+        select 
+          case
+            when total_spent >= 1000 then 'VIP'
+            when total_spent >= 500 then 'Premium'
+            when total_spent >= 100 then 'Regular'
+            else 'New'
+          end as calculated_tier,
+          customer_tier as model_tier,
+          count(*) as customer_count
+        from {{ ref('dim_customers') }}
+        group by calculated_tier, model_tier
+        order by calculated_tier, model_tier
+    view_options:
+      primary_keys:
+        - calculated_tier
+        - model_tier
+
+  - name: Order item validation
+    description: |
+      Validates that order items have reasonable quantities and prices.
+      This helps catch data quality issues in order processing.
+    type: query_diff
+    params:
+      sql_template: |
+        select 
+          count(*) as total_order_items,
+          sum(quantity) as total_quantity,
+          sum(total_price) as total_revenue,
+          avg(unit_price) as avg_unit_price,
+          min(unit_price) as min_unit_price,
+          max(unit_price) as max_unit_price
+        from {{ ref('stg_order_items') }}
+    view_options:
+      primary_keys: []
+
+  # Schema validation for breaking changes
+  - name: Schema validation - dim_customers
+    description: |
+      Validates that the customer dimension schema hasn't changed in breaking ways.
+      This helps catch schema changes that could break downstream dependencies.
+    type: schema_diff
+    params:
+      model: "{{ ref('dim_customers') }}"
+
+  - name: Schema validation - fct_orders
+    description: |
+      Validates that the orders fact table schema hasn't changed in breaking ways.
+      This helps catch schema changes that could break downstream dependencies.
+    type: schema_diff
+    params:
+      model: "{{ ref('fct_orders') }}"
+
+  # Data freshness and completeness
+  - name: Data freshness check
+    description: |
+      Validates that data is fresh and recent orders are being processed.
+      This helps catch issues with data pipeline delays.
+    type: query_diff
+    params:
+      sql_template: |
+        select 
+          date_trunc('day', order_date) as order_day,
+          count(*) as order_count,
+          sum(total_amount) as daily_revenue
+        from {{ ref('stg_orders') }}
+        where order_date >= current_date - 30
+        group by date_trunc('day', order_date)
+        order by order_day desc
+        limit 10
+    view_options:
+      primary_keys:
+        - order_day

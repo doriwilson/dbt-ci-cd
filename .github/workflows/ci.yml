@@ -9,20 +9,16 @@ jobs:
   CI_job:
     runs-on: ubuntu-latest
 
-    # ❄️ Snowflake creds (create these in repo Secrets)
+    # 🦆 DuckDB configuration (no external credentials needed)
     env:
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}      # or key-pair (see note)
-      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
-
-      SCHEMA_PREFIX: PR
+      SCHEMA_PREFIX: pr
       DBT_TARGET: pr
       # Cache key we expect main to write to (see snippet below)
       MANIFEST_ARTIFACT_NAME: dbt-manifest
+      
+      # Recce validation environment variables
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RECCE_STATE_PASSWORD: ${{ secrets.RECCE_STATE_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -42,8 +38,8 @@ jobs:
         id: schema_id
         run: echo "SCHEMA_ID=${{ github.event.pull_request.number }}__$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7 | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
-      # ---- Download manifest from MAIN for slim CI ----
-      - name: Download latest manifest artifact
+      # ---- Download artifacts from MAIN for slim CI and Recce ----
+      - name: Download latest dbt artifacts
         shell: bash
         run: |
           echo "🔍 Fetching artifact list..."
@@ -52,28 +48,44 @@ jobs:
               "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
               -o artifacts.json
 
-          # Extract correct artifact ID by getting download URL
-          artifact_id=$(grep -A10 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
-            | grep '"archive_download_url":' \
-            | head -n1 \
-            | sed 's/.*artifacts\/\([0-9]*\)\/zip.*/\1/')
+          # Function to download artifact by name
+          download_artifact() {
+            local artifact_name=$1
+            local target_dir=$2
+            
+            echo "🔍 Looking for artifact: $artifact_name"
+            artifact_id=$(grep -A10 "\"name\": \"$artifact_name\"" artifacts.json \
+              | grep '"archive_download_url":' \
+              | head -n1 \
+              | sed 's/.*artifacts\/\([0-9]*\)\/zip.*/\1/')
+            
+            if [ -n "$artifact_id" ]; then
+              echo "✅ Found $artifact_name with ID: $artifact_id"
+              echo "⬇️ Downloading $artifact_name..."
+              
+              curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Accept: application/vnd.github+json" \
+                  "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" \
+                  -o "${artifact_name}.zip"
+              
+              unzip -q "${artifact_name}.zip" -d "$target_dir"
+              echo "✅ $artifact_name extracted to $target_dir/"
+            else
+              echo "⚠️ Artifact '$artifact_name' not found (this is normal for first runs)"
+            fi
+          }
 
-          if [ -z "$artifact_id" ]; then
-            echo "❌ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
-            exit 1
-          fi
-
-          echo "✅ Found artifact ID: $artifact_id"
-          echo "⬇️ Downloading artifact..."
-
-          curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" \
-              -o artifact.zip
-
-          unzip -q artifact.zip -d state
-          echo "✅ Artifact extracted to ./state/"
-          ls -lh state
+          # Download manifest (required for slim CI)
+          download_artifact "${{ env.MANIFEST_ARTIFACT_NAME }}" "state"
+          
+          # Download catalog (optional, for Recce)
+          download_artifact "dbt-catalog" "state"
+          
+          # Download run results (optional, for Recce)
+          download_artifact "dbt-run-results" "state"
+          
+          echo "📁 Final state directory contents:"
+          ls -lh state/ || echo "No state directory created"
 
 
 
@@ -102,3 +114,104 @@ jobs:
           else
             dbt build --target $DBT_TARGET --vars "schema_id: $SCHEMA_ID"
           fi
+
+      # ---- Recce Data Validation Steps ----
+      - name: Prepare base artifacts for Recce comparison
+        run: |
+          if [ -f "./state/manifest.json" ]; then
+            echo "✅ Base artifacts found - setting up for Recce comparison"
+            mkdir -p target-base
+            cp ./state/manifest.json ./target-base/manifest.json
+            if [ -f "./state/catalog.json" ]; then
+              cp ./state/catalog.json ./target-base/catalog.json
+            fi
+            if [ -f "./state/run_results.json" ]; then
+              cp ./state/run_results.json ./target-base/run_results.json
+            fi
+            echo "Base artifacts prepared in target-base/"
+            ls -la target-base/
+          else
+            echo "⚠️ No base artifacts found - Recce will run without comparison"
+          fi
+
+      - name: Run Recce validation
+        run: |
+          echo "🔍 Running Recce data validation..."
+          if [ -f "./target-base/manifest.json" ]; then
+            echo "Running Recce with base comparison"
+            recce run --github-pull-request-url ${{ github.event.pull_request.html_url }} || {
+              echo "⚠️ Recce validation completed with warnings or failures"
+              echo "Check the validation results in the PR comment"
+            }
+          else
+            echo "Running Recce without base comparison (first run)"
+            recce run --github-pull-request-url ${{ github.event.pull_request.html_url }} || {
+              echo "⚠️ Recce validation completed with warnings or failures"
+              echo "This is expected for the first run without base artifacts"
+            }
+          fi
+
+      - name: Upload Recce state file
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recce-state-pr-${{ github.event.pull_request.number }}
+          path: recce_state.json
+          retention-days: 7
+
+      - name: Generate Recce summary for PR comment
+        id: recce-summary
+        run: |
+          echo "📊 Generating Recce validation summary..."
+          if [ -f "recce_state.json" ]; then
+            recce summary recce_state.json > recce_summary.md || {
+              echo "⚠️ Failed to generate Recce summary"
+              echo "# Recce Validation Summary" > recce_summary.md
+              echo "Validation completed but summary generation failed. Check the workflow logs for details." >> recce_summary.md
+            }
+            
+            # Add next steps information
+            cat >> recce_summary.md << 'EOF'
+          
+          ## Next Steps
+          If you want to review detailed validation results:
+          
+          ```bash
+          # Download the Recce state file from the workflow artifacts
+          # Then run locally:
+          recce server --review recce_state.json
+          # Open http://localhost:8000 in your browser
+          ```
+          
+          **Note:** This validation helps ensure data quality and catch potential issues before deployment.
+          EOF
+            
+            # Handle case where summary is too long for PR comment
+            if [[ $(wc -c < recce_summary.md) -ge 65535 ]]; then
+              echo "Summary too long for PR comment, creating truncated version"
+              echo "# Recce Validation Summary
+          
+          The validation summary is too long to display in the PR comment.
+          Please check the detailed results in the [workflow summary](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}).
+          
+          ## Next Steps
+          Download the Recce state file from workflow artifacts and run:
+          \`\`\`bash
+          recce server --review recce_state.json
+          \`\`\`" > recce_summary.md
+            fi
+            
+            echo "✅ Recce summary generated"
+            cat recce_summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No Recce state file found"
+            echo "# Recce Validation Summary" > recce_summary.md
+            echo "Validation failed to generate state file. Check workflow logs for details." >> recce_summary.md
+          fi
+
+      - name: Comment on pull request with validation results
+        uses: thollander/actions-comment-pull-request@v2
+        if: always()
+        with:
+          filePath: recce_summary.md
+          comment_tag: recce-validation
