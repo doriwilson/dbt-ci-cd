@@ -12,10 +12,11 @@ customer_metrics as (
     select
         customer_id,
         count(*) as total_orders,
-        sum(total_amount) as total_spent,
+        sum(order_total) as sum_revenue,
+        sum(total_amount - discount_amount) as sum_net_revenue,
         min(order_date) as first_order_date,
         max(order_date) as last_order_date
-    from {{ ref('stg_orders') }}
+    from {{ ref('fct_orders') }}
     group by customer_id
 )
 
@@ -33,7 +34,8 @@ select
     c.created_at,
     c.updated_at,
     coalesce(cm.total_orders, 0) as total_orders,
-    coalesce(cm.total_spent, 0) as total_spent,
+    coalesce(cm.sum_revenue, 0) as total_lifetime_revenue,
+    coalesce(cm.sum_net_revenue, 0) as total_lifetime_net_revenue,
     cm.first_order_date,
     cm.last_order_date,
     case
