@@ -13,7 +13,7 @@ customer_metrics as (
         customer_id,
         count(*) as total_orders,
         sum(order_total) as sum_revenue,
-        sum(total_amount - discount_amount) as sum_net_revenue,
+        sum(order_total - discount_amount) as sum_net_revenue,
         min(order_date) as first_order_date,
         max(order_date) as last_order_date
     from {{ ref('fct_orders') }}
