@@ -27,14 +27,35 @@ jobs:
         run: pip install -r dbt-requirements.txt
 
       # ---- State handling (manifest.json) via artifacts ----
-      - name: Download latest manifest artifact
+      - name: Check for existing artifacts
         shell: bash
         run: |
-          echo "🔍 Fetching artifact list..."
+          echo "🔍 Checking for existing artifacts..."
+          echo "Repository: ${{ github.repository }}"
+          echo "Manifest artifact name: ${{ env.MANIFEST_ARTIFACT_NAME }}"
+          
+          # Create state directory first
+          mkdir -p state
+          
+          # Try to fetch artifacts, but don't fail if it doesn't work
+          echo "Attempting to fetch artifact list from GitHub API..."
           curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
-              -o artifacts.json
+              -o artifacts.json || {
+            echo "⚠️ Could not fetch artifact list (this is normal for first run)"
+            echo "Proceeding with full build - artifacts will be created"
+            exit 0
+          }
+          
+          # Check if we got a valid response
+          if [ ! -f "artifacts.json" ] || [ ! -s "artifacts.json" ]; then
+            echo "⚠️ No artifact list received (this is normal for first run)"
+            echo "Proceeding with full build - artifacts will be created"
+            exit 0
+          fi
+          
+          echo "📄 Artifact list received, searching for manifest..."
 
           # Extract correct artifact ID by getting download URL
           artifact_id=$(grep -A10 '"name": "${{ env.MANIFEST_ARTIFACT_NAME }}"' artifacts.json \
@@ -45,8 +66,7 @@ jobs:
           if [ -z "$artifact_id" ]; then
             echo "⚠️ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
             echo "This is expected for the first run - will do full build"
-            echo "Creating empty state directory for consistency"
-            mkdir -p state
+            echo "Artifacts will be created for future runs"
             exit 0
           fi
 
