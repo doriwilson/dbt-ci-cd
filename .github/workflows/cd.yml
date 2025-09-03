@@ -43,8 +43,9 @@ jobs:
             | sed 's/.*artifacts\/\([0-9]*\)\/zip.*/\1/')
 
           if [ -z "$artifact_id" ]; then
-            echo "❌ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
-            exit 1
+            echo "⚠️ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
+            echo "This is expected for the first run - will do full build"
+            exit 0
           fi
 
           echo "✅ Found artifact ID: $artifact_id"
@@ -66,6 +67,7 @@ jobs:
             echo "Found previous manifest.json; using state:modified+"
           else
             echo "No previous manifest.json found; running full build"
+            echo "This is expected for the first run"
           fi
 
       # ---- dbt steps ----
