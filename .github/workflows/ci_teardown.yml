@@ -22,8 +22,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies (dbt-snowflake)
-        # Ensure dbt-requirements.txt includes dbt-snowflake==1.8.*
+      - name: Install dependencies (dbt-duckdb)
+        # Ensure dbt-requirements.txt includes dbt-duckdb and recce
         run: pip install -r dbt-requirements.txt
 
       - name: Capture SCHEMA_ID number
