@@ -13,10 +13,20 @@ models:
         description: "Total number of orders by customer"
         tests:
           - not_null
-      - name: total_spent
+      - name: total_lifetime_revenue
         description: "Total amount spent by customer"
         tests:
           - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+      - name: total_lifetime_net_revenue
+        description: "Total amount spent by customer"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
       - name: customer_tier
         description: "Customer tier based on spending"
         tests:

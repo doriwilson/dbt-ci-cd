@@ -39,9 +39,9 @@ select
     cm.first_order_date,
     cm.last_order_date,
     case
-        when cm.total_spent >= 1000 then 'VIP'
-        when cm.total_spent >= 500 then 'Premium'
-        when cm.total_spent >= 100 then 'Regular'
+        when cm.sum_net_revenue >= 1000 then 'VIP'
+        when cm.sum_net_revenue >= 500 then 'Premium'
+        when cm.sum_net_revenue >= 100 then 'Regular'
         else 'New'
     end as customer_tier
 from customers c
