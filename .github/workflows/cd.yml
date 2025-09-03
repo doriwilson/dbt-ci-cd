@@ -45,6 +45,8 @@ jobs:
           if [ -z "$artifact_id" ]; then
             echo "⚠️ Artifact '${{ env.MANIFEST_ARTIFACT_NAME }}' not found."
             echo "This is expected for the first run - will do full build"
+            echo "Creating empty state directory for consistency"
+            mkdir -p state
             exit 0
           fi
 
@@ -56,9 +58,15 @@ jobs:
               "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" \
               -o artifact.zip
 
-          unzip -q artifact.zip -d state
-          echo "✅ Artifact extracted to ./state/"
-          ls -lh state
+          if [ -f "artifact.zip" ] && [ -s "artifact.zip" ]; then
+            unzip -q artifact.zip -d state
+            echo "✅ Artifact extracted to ./state/"
+            ls -lh state
+          else
+            echo "⚠️ Downloaded artifact is empty or corrupted"
+            echo "Creating empty state directory for consistency"
+            mkdir -p state
+          fi
 
       - name: Use state manifest if present
         run: |

@@ -6,6 +6,31 @@ This repository demonstrates a comprehensive CI/CD pipeline for dbt projects usi
 
 > **🎯 What's New:** This enhanced version builds on the excellent [original dbt-ci-cd repository](https://github.com/dbt-labs/dbt-ci-cd) by adding Recce data validation, automated PR comments with validation results, and comprehensive data quality checks.
 
+## 🏗️ **Important: Local Testing vs Production Setup**
+
+### **This Tutorial Uses DuckDB (Local Testing)**
+- **Why DuckDB?** No cloud credentials needed - readers can test immediately
+- **Trade-off:** More complex artifact management (GitHub artifacts store state)
+- **Reality:** Production Snowflake/BigQuery would be simpler (no artifacts needed)
+
+### **Production vs Local Differences**
+
+| Aspect | Production (Snowflake/BigQuery) | Local Testing (DuckDB) |
+|--------|--------------------------------|------------------------|
+| **State Storage** | Database stores previous state | GitHub artifacts store state |
+| **State Comparison** | Automatic via database | Manual via artifact downloads |
+| **Complexity** | Simple - no artifacts needed | Complex - artifact management required |
+| **Setup** | Requires cloud credentials | No credentials needed |
+| **Realism** | Production-like environment | Simplified for learning |
+
+### **What This Means for You**
+- ✅ **Learn the concepts** - validation-first CI/CD works the same way
+- ✅ **Test locally** - no cloud setup required
+- ✅ **Understand trade-offs** - see the complexity of local testing
+- ✅ **Adapt to production** - use simpler approach for real projects
+
+> **💡 Pro Tip:** In production, you'd typically use Snowflake/BigQuery where dbt state is stored in the database, eliminating the need for GitHub artifacts. This tutorial shows the "harder" local approach so you understand the full picture.
+
 ## Key Features
 
 ### Original Slim CI/CD Benefits (Preserved)
@@ -22,6 +47,26 @@ This repository demonstrates a comprehensive CI/CD pipeline for dbt projects usi
 - **📈 Schema Change Detection:** Automatic detection of breaking schema changes
 - **🔄 State File Management:** Preserves validation state for detailed review
 - **⚡ Preset Validation Checks:** Pre-configured checks for common data issues
+
+## 🔧 **Understanding the Artifact Complexity**
+
+### **Why GitHub Artifacts Are Needed (DuckDB Limitation)**
+- **DuckDB is file-based** - no persistent state between runs
+- **Each CI run starts fresh** - no memory of previous builds
+- **GitHub artifacts store state** - manifest.json, catalog.json, run_results.json
+- **State comparison requires artifacts** - to know what changed
+
+### **What You'll See in the Workflows**
+- **Artifact downloads** - fetching previous state from GitHub
+- **Artifact uploads** - storing current state for next run
+- **Complex state management** - handling missing artifacts gracefully
+- **Fallback logic** - full builds when no previous state exists
+
+### **Production Would Be Simpler**
+- **Snowflake stores state** in the database automatically
+- **No artifacts needed** - dbt handles state internally
+- **Simpler workflows** - just `dbt build --state` commands
+- **Same validation logic** - Recce works identically
 
 ## GitHub Actions Workflows
 
@@ -241,6 +286,32 @@ RECCE_STATE_PASSWORD=your-secure-password
 ### 3. Create a Test PR
 Make any small change and open a PR to see the validation in action.
 
+## 📚 **What to Expect When Following This Tutorial**
+
+### **First Run (No Artifacts)**
+- **CD workflow will run** when you push to main
+- **May see warnings** about missing artifacts (this is normal)
+- **Full build will complete** and create initial artifacts
+- **Future runs will be faster** using state-based builds
+
+### **PR Testing (With Artifacts)**
+- **CI workflow downloads** previous artifacts from main
+- **Compares PR changes** against main branch state
+- **Recce validation runs** with full comparison
+- **PR comment shows** detailed validation results
+
+### **Common "Gotchas" to Watch For**
+- **First CD run** - artifacts don't exist yet (expected)
+- **Artifact download failures** - handled gracefully with fallbacks
+- **State comparison warnings** - normal for first runs
+- **DuckDB file permissions** - may need to adjust locally
+
+### **Success Indicators**
+- ✅ **CD workflow completes** and uploads artifacts
+- ✅ **PR validation runs** and shows comparison results
+- ✅ **Recce summary appears** in PR comments
+- ✅ **State files available** for download and review
+
 ## What You'll See
 
 When you open a PR, you'll get an automated comment like this:
@@ -268,6 +339,32 @@ When you open a PR, you'll get an automated comment like this:
 - **`models/`** - Jaffle Shop dbt models (customers, orders, products)
 - **`seeds/`** - Sample data for testing validation
 - **`.ai_context/recce/`** - Complete Recce documentation for AI assistance
+
+## 🏭 **Adapting to Production (Snowflake/BigQuery)**
+
+### **Simplified Production Workflow**
+When you move to production with Snowflake or BigQuery, you can simplify the workflows:
+
+```yaml
+# Production CI workflow (simplified)
+- name: dbt build with state
+  run: dbt build --state ./state --target pr
+
+- name: Run Recce validation  
+  run: recce run --github-pull-request-url ${{ github.event.pull_request.html_url }}
+```
+
+### **Key Differences for Production**
+- **Remove artifact management** - dbt state is stored in the database
+- **Simpler state handling** - just `--state ./state` flags
+- **Same Recce validation** - works identically with any warehouse
+- **Faster workflows** - no artifact downloads/uploads needed
+
+### **Migration Steps**
+1. **Update `profiles.yml`** to use your production warehouse
+2. **Remove artifact download/upload steps** from workflows
+3. **Keep Recce validation** - works the same way
+4. **Test with real data** - validation becomes even more valuable
 
 ## For AI-Assisted Development
 
